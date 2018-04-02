@@ -159,7 +159,7 @@ class Authenticate(fooster.web.json.JSONHandler):
         try:
             user = db[self.request.body['username']]
 
-            if user.password != hashlib.sha256(self.request.body['password']).hexdigest():
+            if user.password != hashlib.sha256(self.request.body['password'].encode('utf-8')).hexdigest():
                 raise fooster.web.HTTPError(403)
 
             user.access = ''.join(random.choice('1234567890abcdef') for _ in range(16))
@@ -215,7 +215,7 @@ class Signout(fooster.web.json.JSONHandler):
         try:
             user = db[self.request.body['username']]
 
-            if user.password != hashlib.sha256(self.request.body['password']).hexdigest():
+            if user.password != hashlib.sha256(self.request.body['password'].encode('utf-8')).hexdigest():
                 raise fooster.web.HTTPError(403)
 
             user.access = ''
