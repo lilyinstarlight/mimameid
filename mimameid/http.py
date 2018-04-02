@@ -287,7 +287,7 @@ routes = {}
 error_routes = {}
 
 
-routes.update({'/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/profile/([0-9a-f]{32})': Session})
+routes.update({'/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/profile/([0-9a-f]{32})(?:\?.*)?': Session})
 routes.update(fooster.web.file.new(config.dir + '/texture', '/texture'))
 error_routes.update(fooster.web.json.new_error())
 
