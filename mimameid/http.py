@@ -166,7 +166,7 @@ class Authenticate(fooster.web.json.JSONHandler):
             user.client = self.request.body['clientToken']
 
             return 200, {'accessToken': user.access, 'clientToken': user.client, 'availableProfiles': [{'id': user.uuid, 'name': user.username}], 'selectedProfile': {'id': user.uuid, 'name': user.username}, 'user': {'id': user.uuid, 'properties': [{'name': 'preferredLanguage', 'value': 'en'}]}}
-        except KeyError:
+        except (KeyError, TypeError):
             raise fooster.web.HTTPError(400)
 
 
@@ -174,7 +174,12 @@ class Authenticate(fooster.web.json.JSONHandler):
 class Refresh(fooster.web.json.JSONHandler):
     def do_post(self):
         try:
-            user = db[self.request.body['username']]
+            for other in db:
+                if other.client == self.request.body['clientToken']:
+                    user = other
+                    break
+            else:
+                raise fooster.web.HTTPError(404)
 
             if not user.access or user.access != self.request.body['accessToken']:
                 raise fooster.web.HTTPError(403)
@@ -183,20 +188,25 @@ class Refresh(fooster.web.json.JSONHandler):
             user.client = self.request.body['clientToken']
 
             return 200, {'accessToken': user.access, 'clientToken': user.client, 'availableProfiles': [{'id': user.uuid, 'name': user.username}], 'selectedProfile': {'id': user.uuid, 'name': user.username}, 'user': {'id': user.uuid, 'properties': [{'name': 'preferredLanguage', 'value': 'en'}]}}
-        except KeyError:
+        except (KeyError, TypeError):
             raise fooster.web.HTTPError(400)
 
 
 class Validate(fooster.web.json.JSONHandler):
     def do_post(self):
         try:
-            user = db[self.request.body['username']]
+            for other in db:
+                if other.client == self.request.body['clientToken']:
+                    user = other
+                    break
+            else:
+                raise fooster.web.HTTPError(404)
 
             if not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
                 raise fooster.web.HTTPError(403)
 
             return 204, ''
-        except KeyError:
+        except (KeyError, TypeError):
             raise fooster.web.HTTPError(400)
 
 
@@ -211,14 +221,19 @@ class Signout(fooster.web.json.JSONHandler):
             user.access = ''
 
             return 204, ''
-        except KeyError:
+        except (KeyError, TypeError):
             raise fooster.web.HTTPError(400)
 
 
 class Invalidate(fooster.web.json.JSONHandler):
     def do_post(self):
         try:
-            user = db[self.request.body['username']]
+            for other in db:
+                if other.client == self.request.body['clientToken']:
+                    user = other
+                    break
+            else:
+                raise fooster.web.HTTPError(404)
 
             if not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
                 raise fooster.web.HTTPError(403)
@@ -226,7 +241,7 @@ class Invalidate(fooster.web.json.JSONHandler):
             user.access = ''
 
             return 204, ''
-        except KeyError:
+        except (KeyError, TypeError):
             raise fooster.web.HTTPError(400)
 
 
