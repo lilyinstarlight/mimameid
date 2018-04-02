@@ -108,12 +108,18 @@ class Edit(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
     message = ''
 
     def format(self, page):
+        return page.format(username=self.username, message=self.message)
+
+    def do_get(self):
         cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
 
         try:
-            return page.format(username=sessions[cookies['session']], message=self.message)
+            self.username = sessions[cookies['session']]
         except (KeyError, IndexError):
-            raise fooster.web.HTTPError(400)
+            self.response.headers['Location'] = '/'
+            return 303, ''
+
+        return super().do_get()
 
     def do_post(self):
         cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
@@ -281,6 +287,20 @@ class Session(fooster.web.json.JSONHandler):
         return 200, {'id': user.uuid, 'name': user.username, 'properties': [{'name': 'textures', 'value': base64.b64encode(json.dumps(textures).encode('utf-8')).decode()}]}
 
 
+class JSONErrorHandler(fooster.web.json.JSONErrorHandler):
+    def respond(self):
+        if self.error.code == '405':
+            self.error.message = {'error': 'Method Not Allowed', 'errorMessage': 'A non-POST request was received'}
+        elif self.error.code == '404':
+            self.error.message = {'error': 'Not Found', 'errorMessage': 'Requested resource was not found'}
+        elif self.error.code == '403':
+            self.error.message = {'error': 'ForbiddenOperationException', 'errorMessage': 'Request included invalid credentials'}
+        elif self.error.code == '400':
+            self.error.message = {'error': 'IllegalArgumentException', 'errorMessage': 'Request included invalid fields'}
+
+        return super().respond()
+
+
 http = None
 
 routes = {}
@@ -289,7 +309,7 @@ error_routes = {}
 
 routes.update({'/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/profile/([0-9a-f]{32})(?:\?.*)?': Session})
 routes.update(fooster.web.file.new(config.dir + '/texture', '/texture'))
-error_routes.update(fooster.web.json.new_error())
+error_routes.update({'[0-9]{3}': JSONErrorHandler})
 
 
 def start():
