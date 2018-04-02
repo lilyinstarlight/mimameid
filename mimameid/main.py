@@ -13,7 +13,8 @@ parser.add_argument('-a', '--address', dest='address', help='address to bind')
 parser.add_argument('-p', '--port', type=int, dest='port', help='port to bind')
 parser.add_argument('-t', '--template', dest='template', help='template directory to use')
 parser.add_argument('-l', '--log', dest='log', help='log directory to use')
-parser.add_argument('dir', nargs='?', help='directory to store information')
+parser.add_argument('-d', '--dir', dest='dir', help='directory to store information')
+parser.add_argument('service', nargs='?', help='uri of service')
 
 args = parser.parse_args()
 
@@ -36,6 +37,9 @@ if args.log:
 
 if args.dir:
     config.dir = args.dir
+
+if args.service:
+    config.service = args.service
 
 
 # setup logging

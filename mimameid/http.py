@@ -273,10 +273,10 @@ class Session(fooster.web.json.JSONHandler):
         textures = {'timestamp': int(round(time.time()*1000)), 'profileId': user.uuid, 'profileName': user.username, 'textures': {}}
 
         if user.skin:
-            textures['textures']['SKIN'] = {'url': 'http://textures.minecraft.net/texture/{}'.format(user.skin)}
+            textures['textures']['SKIN'] = {'url': '{}/texture/{}'.format(config.service, user.skin)}
 
         if user.cape:
-            textures['textures']['CAPE'] = {'url': 'http://textures.minecraft.net/texture/{}'.format(user.cape)}
+            textures['textures']['CAPE'] = {'url': '{}/texture/{}'.format(config.service, user.cape)}
 
         return 200, {'id': user.uuid, 'name': user.username, 'properties': [{'name': 'textures', 'value': base64.b64encode(json.dumps(textures).encode('utf-8')).decode()}]}
 
