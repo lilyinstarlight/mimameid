@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Mímameiðr</title>
+	</head>
+
+	<body>
+		<p>Mímameiðr is an Yggdrasil-compatible Minecraft authentication API.</p>
+
+		<nav>
+			<ul>
+				<li><a href="/logout">Logout</a></li>
+			</ul>
+		</nav>
+
+		<h1>Edit Profile</h1>
+
+		<p>{message}</p>
+
+		<form method="POST" enctype="multipart/form-data">
+			<table>
+				<tbody>
+					<tr>
+						<td><label for="username">Username</label></td>
+						<td><input id="username" name="username" type="text" value="{username}" disabled/></td>
+					</tr>
+
+					<tr>
+						<td><label for="password">Password</label></td>
+						<td><input id="password" name="password" type="password"/></td>
+					</tr>
+
+					<tr>
+						<td><label for="skin">Skin</label></td>
+						<td><input id="skin" name="skin" type="file"/></td>
+					</tr>
+
+					<tr>
+						<td colspan="2"><input type="submit"/></td>
+					</tr>
+				</tbody>
+			</table>
+		</form>
+	</body>
+</html>
