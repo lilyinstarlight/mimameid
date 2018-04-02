@@ -14,7 +14,7 @@ parser.add_argument('-p', '--port', type=int, dest='port', help='port to bind')
 parser.add_argument('-t', '--template', dest='template', help='template directory to use')
 parser.add_argument('-l', '--log', dest='log', help='log directory to use')
 parser.add_argument('-d', '--dir', dest='dir', help='directory to store information')
-parser.add_argument('service', nargs='?', help='uri of service')
+parser.add_argument('service', nargs='?', help='uri of texture service')
 
 args = parser.parse_args()
 
