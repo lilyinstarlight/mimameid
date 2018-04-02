@@ -12,5 +12,5 @@ http_log = '/var/log/mimameid/http.log'
 import os.path
 template = os.path.dirname(__file__) + '/html'
 
-# where service is located
-service = 'https://mc.fooster.io'
+# where texture service is located
+service = 'http://texture.minecraft.net'
