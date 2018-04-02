@@ -15,6 +15,7 @@ from mimameid import config
 
 
 db = fooster.db.Database(config.dir + '/profiles.db', ['username', 'uuid', 'password', 'skin', 'cape', 'access', 'client'])
+timeout = 3600
 sessions = None
 
 
@@ -42,7 +43,14 @@ class Login(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
         session = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
 
         if username in db and hashlib.sha256(password.encode('utf-8')).hexdigest() == db[username].password:
-            sessions[session] = username
+            delete = []
+            for session, user in sessions.items():
+                if user[1] <= time.time():
+                    delete.append(session)
+            for session in delete:
+                del sessions[session]
+
+            sessions[session] = (username, time.time() + timeout)
 
             self.response.headers['Set-Cookie'] = 'session={}; Max-Age=3600'.format(session)
             self.response.headers['Location'] = '/edit'
@@ -59,6 +67,13 @@ class Logout(fooster.web.HTTPHandler):
         cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
 
         try:
+            delete = []
+            for session, user in sessions.items():
+                if user[1] <= time.time():
+                    delete.append(session)
+            for session in delete:
+                del sessions[session]
+
             del sessions[cookies['session']]
         except (KeyError, IndexError):
             self.response.headers['Location'] = '/'
@@ -114,7 +129,14 @@ class Edit(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
         cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
 
         try:
-            self.username = sessions[cookies['session']]
+            delete = []
+            for session, user in sessions.items():
+                if user[1] <= time.time():
+                    delete.append(session)
+            for session in delete:
+                del sessions[session]
+
+            self.username = sessions[cookies['session']][0]
         except (KeyError, IndexError):
             self.response.headers['Location'] = '/'
             return 303, ''
@@ -125,16 +147,16 @@ class Edit(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
         cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
 
         try:
-            username = sessions[cookies['session']]
+            self.username = sessions[cookies['session']][0]
         except (KeyError, IndexError):
             self.response.headers['Location'] = '/'
             return 303, ''
 
-        if username not in db:
+        if self.username not in db:
             self.response.headers['Location'] = '/login'
             return 303, ''
 
-        user = db[username]
+        user = db[self.username]
 
         if 'password' in self.request.body and self.request.body['password']:
             user.password = hashlib.sha256(self.request.body['password'].encode('utf-8')).hexdigest()
