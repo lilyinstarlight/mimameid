@@ -333,13 +333,13 @@ class Session(fooster.web.json.JSONHandler):
 
 class JSONErrorHandler(fooster.web.json.JSONErrorHandler):
     def respond(self):
-        if self.error.code == '405':
+        if self.error.code == 405:
             self.error.message = {'error': 'Method Not Allowed', 'errorMessage': 'A non-POST request was received'}
-        elif self.error.code == '404':
+        elif self.error.code == 404:
             self.error.message = {'error': 'Not Found', 'errorMessage': 'Requested resource was not found'}
-        elif self.error.code == '403':
+        elif self.error.code == 403:
             self.error.message = {'error': 'ForbiddenOperationException', 'errorMessage': 'Request included invalid credentials'}
-        elif self.error.code == '400':
+        elif self.error.code == 400:
             self.error.message = {'error': 'IllegalArgumentException', 'errorMessage': 'Request included invalid fields'}
 
         return super().respond()
