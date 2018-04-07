@@ -1,11 +1,14 @@
 import base64
 import hashlib
 import json
+import logging
 import os
 import random
 import string
 import time
 import uuid
+
+import rsa
 
 import fooster.web, fooster.web.file, fooster.web.form, fooster.web.json, fooster.web.page
 
@@ -14,9 +17,18 @@ import fooster.db
 from mimameid import config
 
 
+log = logging.getLogger('mimameid')
+
 db = fooster.db.Database(config.dir + '/profiles.db', ['username', 'uuid', 'password', 'skin', 'cape', 'access', 'client'])
 timeout = 3600
 sessions = None
+
+key = (None, None)
+
+
+class Key(fooster.web.HTTPHandler):
+    def do_get(self):
+        return 200, key[0].save_pkcs1(format='DER')
 
 
 class Index(fooster.web.page.PageHandler):
@@ -306,7 +318,17 @@ class Session(fooster.web.json.JSONHandler):
         if user.cape:
             textures['textures']['CAPE'] = {'url': '{}/texture/{}'.format(config.service, user.cape)}
 
-        return 200, {'id': user.uuid, 'name': user.username, 'properties': [{'name': 'textures', 'value': base64.b64encode(json.dumps(textures).encode('utf-8')).decode()}]}
+        if self.groups[1] == '?unsigned=false':
+            textures['signatureRequired'] = True
+
+            textures_data = base64.b64encode(json.dumps(textures).encode('utf-8'))
+            textures_signature = base64.b64encode(rsa.sign(textures_data, key[1], 'SHA-1'))
+
+            return 200, {'id': user.uuid, 'name': user.username, 'properties': [{'name': 'textures', 'value': textures_data.decode(), 'signature': textures_signature.decode()}]}
+        else:
+            textures_data = base64.b64encode(json.dumps(textures).encode('utf-8'))
+
+            return 200, {'id': user.uuid, 'name': user.username, 'properties': [{'name': 'textures', 'value': textures_data.decode()}]}
 
 
 class JSONErrorHandler(fooster.web.json.JSONErrorHandler):
@@ -329,13 +351,34 @@ routes = {}
 error_routes = {}
 
 
-routes.update({'/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/profile/([0-9a-f]{32})(?:\?.*)?': Session})
+routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/profile/([0-9a-f]{32})(\?.*)?': Session})
 routes.update(fooster.web.file.new(config.dir + '/texture', '/texture'))
 error_routes.update({'[0-9]{3}': JSONErrorHandler})
 
 
 def start():
-    global http, sessions
+    global key, http, sessions
+
+    if os.path.exists(config.key + '/pub.key'):
+        log.info('Loading RSA key...')
+
+        with open(config.key + '/pub.key', 'rb') as key_file:
+            key_pub = rsa.PublicKey.load_pkcs1(key_file.read())
+        with open(config.key + '/priv.key', 'rb') as key_file:
+            key_priv = rsa.PrivateKey.load_pkcs1(key_file.read())
+
+        key = (key_pub, key_priv)
+    else:
+        log.info('Generating RSA key...')
+
+        key = rsa.newkeys(2048)
+
+        os.makedirs(config.key, exist_ok=True)
+
+        with open(config.key + '/pub.key', 'wb') as key_file:
+            key_file.write(key[0].save_pkcs1())
+        with open(config.key + '/priv.key', 'wb') as key_file:
+            key_file.write(key[1].save_pkcs1())
 
     http = fooster.web.HTTPServer(config.addr, routes, error_routes)
     sessions = http.sync.dict()
