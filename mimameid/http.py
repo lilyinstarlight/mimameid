@@ -197,7 +197,12 @@ class Edit(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
 class Authenticate(fooster.web.json.JSONHandler):
     def do_post(self):
         try:
-            user = db[self.request.body['username']]
+            username = self.request.body['username']
+
+            try:
+                user = db[username]
+            except KeyError:
+                raise fooster.web.HTTPError(403)
 
             if user.password != hashlib.sha256(self.request.body['password'].encode('utf-8')).hexdigest():
                 raise fooster.web.HTTPError(403)
@@ -219,7 +224,7 @@ class Refresh(fooster.web.json.JSONHandler):
                     user = other
                     break
             else:
-                raise fooster.web.HTTPError(404)
+                raise fooster.web.HTTPError(403)
 
             if not user.access or user.access != self.request.body['accessToken']:
                 raise fooster.web.HTTPError(403)
@@ -240,7 +245,7 @@ class Validate(fooster.web.json.JSONHandler):
                     user = other
                     break
             else:
-                raise fooster.web.HTTPError(404)
+                raise fooster.web.HTTPError(403)
 
             if not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
                 raise fooster.web.HTTPError(403)
@@ -253,7 +258,12 @@ class Validate(fooster.web.json.JSONHandler):
 class Signout(fooster.web.json.JSONHandler):
     def do_post(self):
         try:
-            user = db[self.request.body['username']]
+            username = self.request.body['username']
+
+            try:
+                user = db[username]
+            except KeyError:
+                raise fooster.web.HTTPError(403)
 
             if user.password != hashlib.sha256(self.request.body['password'].encode('utf-8')).hexdigest():
                 raise fooster.web.HTTPError(403)
@@ -273,7 +283,7 @@ class Invalidate(fooster.web.json.JSONHandler):
                     user = other
                     break
             else:
-                raise fooster.web.HTTPError(404)
+                raise fooster.web.HTTPError(403)
 
             if not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
                 raise fooster.web.HTTPError(403)
