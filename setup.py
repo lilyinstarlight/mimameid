@@ -39,7 +39,7 @@ setup(
     url='https://github.com/fkmclane/mimameid',
     author='Foster McLane',
     author_email='fkmclane@gmail.com',
-    install_requires=['fooster-web', 'fooster-db', 'rsa'],
+    install_requires=['fooster-web', 'fooster-db', 'requests', 'rsa'],
     packages=find_packages(),
     package_data={'': ['html/*.*', 'res/*.*']},
     entry_points = {'console_scripts': ['mimameid = mimameid.main']},

@@ -8,6 +8,7 @@ import string
 import time
 import uuid
 
+import requests
 import rsa
 
 import fooster.web, fooster.web.file, fooster.web.form, fooster.web.json, fooster.web.page
@@ -52,7 +53,7 @@ class Login(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
             self.response.headers['Location'] = '/'
             return 303, ''
 
-        session = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
+        session = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(32))
 
         if username in db and hashlib.sha256(password.encode('utf-8')).hexdigest() == db[username].password:
             delete = []
@@ -202,7 +203,11 @@ class Authenticate(fooster.web.json.JSONHandler):
             try:
                 user = db[username]
             except KeyError:
-                raise fooster.web.HTTPError(403)
+                if config.forward:
+                    request = requests.post('https://authserver.mojang.com/authenticate', json=self.request.body)
+                    return request.status_code, request.json()
+                else:
+                    raise fooster.web.HTTPError(403)
 
             if user.password != hashlib.sha256(self.request.body['password'].encode('utf-8')).hexdigest():
                 raise fooster.web.HTTPError(403)
@@ -219,17 +224,21 @@ class Authenticate(fooster.web.json.JSONHandler):
 class Refresh(fooster.web.json.JSONHandler):
     def do_post(self):
         try:
+            user = None
+
             for other in db:
                 if other.client == self.request.body['clientToken']:
                     user = other
                     break
-            else:
-                raise fooster.web.HTTPError(403)
 
-            if not user.access or user.access != self.request.body['accessToken']:
-                raise fooster.web.HTTPError(403)
+            if not user or not user.access or user.access != self.request.body['accessToken']:
+                if config.forward:
+                    request = requests.post('https://authserver.mojang.com/refresh', json=self.request.body)
+                    return request.status_code, request.json()
+                else:
+                    raise fooster.web.HTTPError(403)
 
-            user.access = ''.join(random.choice('1234567890abcdef') for _ in range(16))
+            user.access = ''.join(random.choice('1234567890abcdef') for _ in range(32))
             user.client = self.request.body['clientToken']
 
             return 200, {'accessToken': user.access, 'clientToken': user.client, 'availableProfiles': [{'id': user.uuid, 'name': user.username}], 'selectedProfile': {'id': user.uuid, 'name': user.username}, 'user': {'id': user.uuid, 'properties': [{'name': 'preferredLanguage', 'value': 'en'}]}}
@@ -240,15 +249,19 @@ class Refresh(fooster.web.json.JSONHandler):
 class Validate(fooster.web.json.JSONHandler):
     def do_post(self):
         try:
+            user = None
+
             for other in db:
                 if other.client == self.request.body['clientToken']:
                     user = other
                     break
-            else:
-                raise fooster.web.HTTPError(403)
 
-            if not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
-                raise fooster.web.HTTPError(403)
+            if not user or not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
+                if config.forward:
+                    request = requests.post('https://authserver.mojang.com/validate', json=self.request.body)
+                    return request.status_code, request.json()
+                else:
+                    raise fooster.web.HTTPError(403)
 
             return 204, ''
         except (KeyError, TypeError):
@@ -263,7 +276,11 @@ class Signout(fooster.web.json.JSONHandler):
             try:
                 user = db[username]
             except KeyError:
-                raise fooster.web.HTTPError(403)
+                if config.forward:
+                    request = requests.post('https://authserver.mojang.com/signout', json=self.request.body)
+                    return request.status_code, request.json()
+                else:
+                    raise fooster.web.HTTPError(403)
 
             if user.password != hashlib.sha256(self.request.body['password'].encode('utf-8')).hexdigest():
                 raise fooster.web.HTTPError(403)
@@ -278,15 +295,19 @@ class Signout(fooster.web.json.JSONHandler):
 class Invalidate(fooster.web.json.JSONHandler):
     def do_post(self):
         try:
+            user = None
+
             for other in db:
                 if other.client == self.request.body['clientToken']:
                     user = other
                     break
-            else:
-                raise fooster.web.HTTPError(403)
 
-            if not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
-                raise fooster.web.HTTPError(403)
+            if not user or not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
+                if config.forward:
+                    request = requests.post('https://authserver.mojang.com/invalidate', json=self.request.body)
+                    return request.status_code, request.json()
+                else:
+                    raise fooster.web.HTTPError(403)
 
             user.access = ''
 
@@ -298,15 +319,18 @@ class Invalidate(fooster.web.json.JSONHandler):
 class Profile(fooster.web.json.JSONHandler):
     def do_post(self):
         usernames = []
+        forward = []
 
-        print(self.request.body)
         for username in self.request.body:
             try:
                 user = db[username]
 
                 usernames.append({'id': user.uuid, 'name': user.username})
             except KeyError:
-                pass
+                forward.append(username)
+
+        if config.forward:
+            usernames.extend(requests.post('https://api.mojang.com/profiles/minecraft', json=forward).json())
 
         return 200, usernames
 
@@ -318,7 +342,12 @@ class Session(fooster.web.json.JSONHandler):
                 user = other
                 break
         else:
-            raise fooster.web.HTTPError(404)
+            if config.forward:
+                response = requests.get('https://sessionserver.mojang.com/session/minecraft/profile/' + self.groups[0] + self.groups[1])
+
+                return response.status_code, response.json()
+            else:
+                raise fooster.web.HTTPError(404)
 
         textures = {'timestamp': int(round(time.time()*1000)), 'profileId': user.uuid, 'profileName': user.username, 'textures': {}}
 

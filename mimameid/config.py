@@ -18,3 +18,6 @@ key = os.path.dirname(__file__) + '/key'
 
 # where texture service is located
 service = 'http://texture.minecraft.net'
+
+# whether to forward unknown requests to Mojang's Yggdrasil
+forward = True

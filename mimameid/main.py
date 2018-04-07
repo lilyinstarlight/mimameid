@@ -11,6 +11,7 @@ from mimameid import config
 parser = argparse.ArgumentParser(description='serve up an Yggdrasil-compatible authentication API')
 parser.add_argument('-a', '--address', dest='address', help='address to bind')
 parser.add_argument('-p', '--port', type=int, dest='port', help='port to bind')
+parser.add_argument('-f', '--forward', type=bool, dest='forward', help='whether to forward unknown requests')
 parser.add_argument('-t', '--template', dest='template', help='template directory to use')
 parser.add_argument('-l', '--log', dest='log', help='log directory to use')
 parser.add_argument('-k', '--key', dest='key', help='directory to store signing key')
@@ -24,6 +25,9 @@ if args.address:
 
 if args.port:
     config.addr = (config.addr[0], args.port)
+
+if args.forward:
+    config.forward = args.forward
 
 if args.template:
     config.template = args.template
