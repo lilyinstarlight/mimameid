@@ -14,7 +14,6 @@ parser.add_argument('-p', '--port', type=int, dest='port', help='port to bind')
 parser.add_argument('-f', '--forward', type=bool, dest='forward', help='whether to forward unknown requests')
 parser.add_argument('-t', '--template', dest='template', help='template directory to use')
 parser.add_argument('-l', '--log', dest='log', help='log directory to use')
-parser.add_argument('-k', '--key', dest='key', help='directory to store signing key')
 parser.add_argument('-d', '--dir', dest='dir', help='directory to store information')
 parser.add_argument('service', nargs='?', help='uri of texture service')
 
@@ -39,9 +38,6 @@ if args.log:
     else:
         config.log = args.log + '/mimameid.log'
         config.http_log = args.log + '/http.log'
-
-if args.key:
-    config.key = args.key
 
 if args.dir:
     config.dir = args.dir

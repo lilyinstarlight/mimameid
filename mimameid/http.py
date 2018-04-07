@@ -398,12 +398,12 @@ error_routes.update({'[0-9]{3}': JSONErrorHandler})
 def start():
     global key, http, sessions
 
-    if os.path.exists(config.key + '/pub.key'):
+    if os.path.exists(config.dir + '/pub.key'):
         log.info('Loading RSA key...')
 
-        with open(config.key + '/pub.key', 'rb') as key_file:
+        with open(config.dir + '/pub.key', 'rb') as key_file:
             key_pub = rsa.PublicKey.load_pkcs1(key_file.read())
-        with open(config.key + '/priv.key', 'rb') as key_file:
+        with open(config.dir + '/priv.key', 'rb') as key_file:
             key_priv = rsa.PrivateKey.load_pkcs1(key_file.read())
 
         key = (key_pub, key_priv)
@@ -412,11 +412,11 @@ def start():
 
         key = rsa.newkeys(2048)
 
-        os.makedirs(config.key, exist_ok=True)
+        os.makedirs(config.dir, exist_ok=True)
 
-        with open(config.key + '/pub.key', 'wb') as key_file:
+        with open(config.dir + '/pub.key', 'wb') as key_file:
             key_file.write(key[0].save_pkcs1())
-        with open(config.key + '/priv.key', 'wb') as key_file:
+        with open(config.dir + '/priv.key', 'wb') as key_file:
             key_file.write(key[1].save_pkcs1())
 
     http = fooster.web.HTTPServer(config.addr, routes, error_routes)
