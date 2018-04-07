@@ -259,7 +259,7 @@ class Validate(fooster.web.json.JSONHandler):
             if not user or not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
                 if config.forward:
                     request = requests.post('https://authserver.mojang.com/validate', json=self.request.body)
-                    return request.status_code, request.json()
+                    return request.status_code, request.text if request.status_code == 204 else request.json()
                 else:
                     raise fooster.web.HTTPError(403)
 
@@ -278,7 +278,7 @@ class Signout(fooster.web.json.JSONHandler):
             except KeyError:
                 if config.forward:
                     request = requests.post('https://authserver.mojang.com/signout', json=self.request.body)
-                    return request.status_code, request.json()
+                    return request.status_code, request.text if request.status_code == 204 else request.json()
                 else:
                     raise fooster.web.HTTPError(403)
 
@@ -305,7 +305,7 @@ class Invalidate(fooster.web.json.JSONHandler):
             if not user or not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
                 if config.forward:
                     request = requests.post('https://authserver.mojang.com/invalidate', json=self.request.body)
-                    return request.status_code, request.json()
+                    return request.status_code, request.text if request.status_code == 204 else request.json()
                 else:
                     raise fooster.web.HTTPError(403)
 
