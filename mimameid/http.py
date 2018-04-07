@@ -207,7 +207,7 @@ class Authenticate(fooster.web.json.JSONHandler):
             if user.password != hashlib.sha256(self.request.body['password'].encode('utf-8')).hexdigest():
                 raise fooster.web.HTTPError(403)
 
-            user.access = ''.join(random.choice('1234567890abcdef') for _ in range(16))
+            user.access = ''.join(random.choice('1234567890abcdef') for _ in range(32))
             user.client = self.request.body['clientToken']
 
             return 200, {'accessToken': user.access, 'clientToken': user.client, 'availableProfiles': [{'id': user.uuid, 'name': user.username}], 'selectedProfile': {'id': user.uuid, 'name': user.username}, 'user': {'id': user.uuid, 'properties': [{'name': 'preferredLanguage', 'value': 'en'}]}}
