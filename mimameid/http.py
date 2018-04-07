@@ -215,7 +215,12 @@ class Authenticate(fooster.web.json.JSONHandler):
             user.access = ''.join(random.choice('1234567890abcdef') for _ in range(32))
             user.client = self.request.body['clientToken']
 
-            return 200, {'accessToken': user.access, 'clientToken': user.client, 'availableProfiles': [{'id': user.uuid, 'name': user.username}], 'selectedProfile': {'id': user.uuid, 'name': user.username}, 'user': {'id': user.uuid, 'properties': [{'name': 'preferredLanguage', 'value': 'en'}]}}
+            data = {'accessToken': user.access, 'clientToken': user.client, 'availableProfiles': [{'id': user.uuid, 'name': user.username}], 'selectedProfile': {'id': user.uuid, 'name': user.username}}
+
+            if 'requestUser' in self.request.body and self.request.body['requestUser']:
+                data['user'] = {'id': user.uuid, 'properties': [{'name': 'preferredLanguage', 'value': 'en'}]}
+
+            return 200, data
         except (KeyError, TypeError):
             raise fooster.web.HTTPError(400)
 
@@ -241,7 +246,12 @@ class Refresh(fooster.web.json.JSONHandler):
             user.access = ''.join(random.choice('1234567890abcdef') for _ in range(32))
             user.client = self.request.body['clientToken']
 
-            return 200, {'accessToken': user.access, 'clientToken': user.client, 'availableProfiles': [{'id': user.uuid, 'name': user.username}], 'selectedProfile': {'id': user.uuid, 'name': user.username}, 'user': {'id': user.uuid, 'properties': [{'name': 'preferredLanguage', 'value': 'en'}]}}
+            data = {'accessToken': user.access, 'clientToken': user.client, 'availableProfiles': [{'id': user.uuid, 'name': user.username}], 'selectedProfile': {'id': user.uuid, 'name': user.username}}
+
+            if 'requestUser' in self.request.body and self.request.body['requestUser']:
+                data['user'] = {'id': user.uuid, 'properties': [{'name': 'preferredLanguage', 'value': 'en'}]}
+
+            return 200, data
         except (KeyError, TypeError):
             raise fooster.web.HTTPError(400)
 
