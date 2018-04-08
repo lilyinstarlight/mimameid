@@ -22,7 +22,7 @@ from mimameid import config
 
 log = logging.getLogger('mimameid')
 
-db = fooster.db.Database(config.dir + '/profiles.db', ['username', 'uuid', 'password', 'skin', 'cape', 'access', 'client'])
+db = fooster.db.Database(config.dir + '/profiles.db', ['username', 'uuid', 'password', 'skin', 'cape', 'access', 'client', 'server'])
 timeout = 3600
 sessions = None
 
@@ -119,7 +119,7 @@ class Register(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
 
         if password == confirm:
             if username not in db:
-                db[username] = db.Entry(str(uuid.uuid4()).replace('-', ''), hashlib.sha256(password.encode('utf-8')).hexdigest(), '', '', '', '')
+                db[username] = db.Entry(str(uuid.uuid4()).replace('-', ''), hashlib.sha256(password.encode('utf-8')).hexdigest(), '', '', '', '', '')
 
                 self.response.headers['Location'] = '/login'
 
@@ -347,8 +347,72 @@ class Profile(fooster.web.json.JSONHandler):
         return 200, usernames
 
 
+class Join(fooster.web.json.JSONHandler):
+    def do_post(self):
+        try:
+            user = None
+
+            for other in db:
+                if other.uuid == self.request.body['selectedProfile']:
+                    user = other
+                    break
+
+            if not user or not user.access or user.access != self.request.body['accessToken']:
+                if config.forward:
+                    request = requests.post('https://sessionserver.mojang.com/session/minecraft/join', json=self.request.body)
+                    return request.status_code, None if request.status_code == 204 else request.json()
+                else:
+                    raise fooster.web.HTTPError(403)
+
+            user.server = self.request.body['serverId']
+
+            return 204, None
+        except (KeyError, TypeError):
+            raise fooster.web.HTTPError(400)
+
+
+class HasJoined(fooster.web.json.JSONHandler):
+    def do_get(self):
+        args = dict(urllib.parse.parse_qsl(self.groups[0][1:], True))
+
+        try:
+            for other in db:
+                if other.username == args['username']:
+                    user = other
+                    break
+            else:
+                if config.forward:
+                    response = requests.get('https://sessionserver.mojang.com/session/minecraft/hasJoined' + self.groups[0])
+
+                    return response.status_code, response.json()
+                else:
+                    raise fooster.web.HTTPError(404)
+
+            if not user.server != args['serverId']:
+                raise fooster.web.HTTPError(403)
+
+            textures = {'timestamp': int(round(time.time()*1000)), 'profileId': user.uuid, 'profileName': user.username, 'textures': {}}
+
+            if user.skin:
+                textures['textures']['SKIN'] = {'url': '{}/texture/{}'.format(config.service, user.skin)}
+
+            if user.cape:
+                textures['textures']['CAPE'] = {'url': '{}/texture/{}'.format(config.service, user.cape)}
+
+            textures['signatureRequired'] = True
+
+            textures_data = base64.b64encode(json.dumps(textures).encode('utf-8'))
+            textures_signature = base64.b64encode(rsa.sign(textures_data, key[1], 'SHA-1'))
+
+            return 200, {'id': user.uuid, 'name': user.username, 'properties': [{'name': 'textures', 'value': textures_data.decode(), 'signature': textures_signature.decode()}]}
+        except (KeyError, TypeError):
+            raise fooster.web.HTTPError(400)
+
+
 class Session(fooster.web.json.JSONHandler):
     def do_get(self):
+        args = dict(urllib.parse.parse_qsl(self.groups[1][1:], True))
+
         for other in db:
             if other.uuid == self.groups[0]:
                 user = other
@@ -369,7 +433,7 @@ class Session(fooster.web.json.JSONHandler):
         if user.cape:
             textures['textures']['CAPE'] = {'url': '{}/texture/{}'.format(config.service, user.cape)}
 
-        if self.groups[1] == '?unsigned=false':
+        if 'unsigned' in args and not args['unsigned']:
             textures['signatureRequired'] = True
 
             textures_data = base64.b64encode(json.dumps(textures).encode('utf-8'))
@@ -440,7 +504,7 @@ routes = {}
 error_routes = {}
 
 
-routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/profile/([0-9a-f]{32})(\?.*)?': Session, '/texture/(.*)': Texture, '/mc/game/(.*)': Meta, '/(.*\.jar)': Library})
+routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/join': Join, '/session/minecraft/hasJoined(\?.*)?': HasJoined, '/session/minecraft/profile/([0-9a-f]{32})(\?.*)?': Session, '/texture/(.*)': Texture, '/mc/game/(.*)': Meta, '/(.*\.jar)': Library})
 error_routes.update({'[0-9]{3}': JSONErrorHandler})
 
 
