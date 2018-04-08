@@ -386,11 +386,11 @@ class Texture(fooster.web.file.FileHandler):
     def respond(self):
         norm_request = fooster.web.file.normpath(self.groups[0])
         if self.groups[0] != norm_request:
-            self.response.headers.set('Location', '/texture' + norm_request)
+            self.response.headers.set('Location', '/texture/' + norm_request)
 
             return 307, ''
 
-        self.filename = config.dir + '/texture' + urllib.parse.unquote(self.groups[0])
+        self.filename = config.dir + '/texture/' + urllib.parse.unquote(self.groups[0])
 
         try:
             return super().respond()
