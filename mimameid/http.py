@@ -117,17 +117,20 @@ class Register(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
             self.response.headers['Location'] = '/'
             return 303, ''
 
-        if password == confirm:
-            if username not in db:
-                db[username] = db.Entry(str(uuid.uuid4()).replace('-', ''), hashlib.sha256(password.encode('utf-8')).hexdigest(), '', '', '', '', '')
+        if len(username) >= 3 or len(username) <= 16:
+            if password == confirm:
+                if username not in db:
+                    db[username] = db.Entry(str(uuid.uuid4()).replace('-', ''), hashlib.sha256(password.encode('utf-8')).hexdigest(), '', '', '', '', '')
 
-                self.response.headers['Location'] = '/login'
+                    self.response.headers['Location'] = '/login'
 
-                return 303, ''
+                    return 303, ''
+                else:
+                    self.message = 'Username already taken.'
             else:
-                self.message = 'Username already taken.'
+                self.message = 'Passwords do not match.'
         else:
-            self.message = 'Passwords do not match.'
+            self.message = 'Username not between 3 and 16 characters.'
 
         return self.do_get()
 
