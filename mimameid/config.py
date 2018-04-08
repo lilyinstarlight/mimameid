@@ -14,7 +14,7 @@ http_log = '/var/log/mimameid/http.log'
 template = os.path.dirname(__file__) + '/html'
 
 # where texture service is located
-service = 'http://textures.minecraft.net'
+service = 'http://texture.minecraft.net'
 
 # whether to forward unknown requests to Mojang's Yggdrasil
 forward = False
