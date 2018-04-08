@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import http.client
 import json
 import logging
 import os
@@ -380,6 +381,21 @@ class Session(fooster.web.json.JSONHandler):
             return 200, {'id': user.uuid, 'name': user.username, 'properties': [{'name': 'textures', 'value': textures_data.decode()}]}
 
 
+class Meta(fooster.web.json.JSONHandler):
+    def do_get(self):
+        request = requests.get('https://launchermeta.mojang.com/mc/game/' + self.groups[0])
+        return request.status_code, request.json()
+
+
+class Library(fooster.web.HTTPHandler):
+    def do_get(self):
+        conn = http.client.HTTPSConnection('libraries.minecraft.net')
+        conn.request('GET', self.groups[0])
+        response = conn.getresponse()
+
+        return response.status, response
+
+
 class JSONErrorHandler(fooster.web.json.JSONErrorHandler):
     def respond(self):
         if self.error.code == 405:
@@ -394,19 +410,19 @@ class JSONErrorHandler(fooster.web.json.JSONErrorHandler):
         return super().respond()
 
 
-http = None
+web = None
 
 routes = {}
 error_routes = {}
 
 
-routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/profile/([0-9a-f]{32})(\?.*)?': Session})
+routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/profile/([0-9a-f]{32})(\?.*)?': Session, '/mc/game/(.*)': Meta, '(/.*\.jar)': Library})
 routes.update(fooster.web.file.new(config.dir + '/texture', '/texture'))
 error_routes.update({'[0-9]{3}': JSONErrorHandler})
 
 
 def start():
-    global key, http, sessions
+    global key, web, sessions
 
     if os.path.exists(config.dir + '/pub.key'):
         log.info('Loading RSA key...')
@@ -429,20 +445,20 @@ def start():
         with open(config.dir + '/priv.key', 'wb') as key_file:
             key_file.write(key[1].save_pkcs1())
 
-    http = fooster.web.HTTPServer(config.addr, routes, error_routes)
-    sessions = http.sync.dict()
-    http.start()
+    web = fooster.web.HTTPServer(config.addr, routes, error_routes)
+    sessions = web.sync.dict()
+    web.start()
 
 
 def stop():
-    global http, sessions
+    global web, sessions
 
-    http.stop()
+    web.stop()
     sessions = None
-    http = None
+    web = None
 
 
 def join():
-    global http
+    global web
 
-    http.join()
+    web.join()
