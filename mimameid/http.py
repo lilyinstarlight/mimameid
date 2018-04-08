@@ -7,6 +7,7 @@ import os
 import random
 import string
 import time
+import urllib.parse
 import uuid
 
 import requests
@@ -381,6 +382,29 @@ class Session(fooster.web.json.JSONHandler):
             return 200, {'id': user.uuid, 'name': user.username, 'properties': [{'name': 'textures', 'value': textures_data.decode()}]}
 
 
+class Texture(fooster.web.file.FileHandler):
+    def respond(self):
+        norm_request = fooster.web.file.normpath(self.groups[0])
+        if self.groups[0] != norm_request:
+            self.response.headers.set('Location', '/texture' + norm_request)
+
+            return 307, ''
+
+        self.filename = config.dir + '/texture' + urllib.parse.unquote(self.groups[0])
+
+        try:
+            return super().respond()
+        except fooster.web.HTTPError as error:
+            if error.code == 404:
+                conn = http.client.HTTPSConnection('textures.minecraft.net')
+                conn.request('GET', '/texture/' + self.groups[0])
+                response = conn.getresponse()
+
+                return response.status, response
+            else:
+                raise
+
+
 class Meta(fooster.web.json.JSONHandler):
     def do_get(self):
         request = requests.get('https://launchermeta.mojang.com/mc/game/' + self.groups[0])
@@ -390,7 +414,7 @@ class Meta(fooster.web.json.JSONHandler):
 class Library(fooster.web.HTTPHandler):
     def do_get(self):
         conn = http.client.HTTPSConnection('libraries.minecraft.net')
-        conn.request('GET', self.groups[0])
+        conn.request('GET', '/' + self.groups[0])
         response = conn.getresponse()
 
         return response.status, response
@@ -416,8 +440,7 @@ routes = {}
 error_routes = {}
 
 
-routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/profile/([0-9a-f]{32})(\?.*)?': Session, '/mc/game/(.*)': Meta, '(/.*\.jar)': Library})
-routes.update(fooster.web.file.new(config.dir + '/texture', '/texture'))
+routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/profile/([0-9a-f]{32})(\?.*)?': Session, '/texture/(.*)': Texture, '/mc/game/(.*)': Meta, '/(.*\.jar)': Library})
 error_routes.update({'[0-9]{3}': JSONErrorHandler})
 
 
