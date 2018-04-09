@@ -391,8 +391,8 @@ class HasJoined(fooster.web.json.JSONHandler):
                 else:
                     raise fooster.web.HTTPError(404)
 
-            if not user.server != args['serverId']:
-                raise fooster.web.HTTPError(403)
+            if user.server != args['serverId']:
+                return 204, None
 
             textures = {'timestamp': int(round(time.time()*1000)), 'profileId': user.uuid, 'profileName': user.username, 'textures': {}}
 
