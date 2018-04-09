@@ -474,7 +474,7 @@ class Texture(fooster.web.file.FileHandler):
 
 class Meta(fooster.web.json.JSONHandler):
     def do_get(self):
-        request = requests.get('https://launchermeta.mojang.com/mc/game/' + self.groups[0])
+        request = requests.get('https://launchermeta.mojang.com/mc/' + self.groups[0])
         return request.status_code, request.json()
 
 
@@ -507,7 +507,7 @@ routes = {}
 error_routes = {}
 
 
-routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/join': Join, '/session/minecraft/hasJoined(\?.*)?': HasJoined, '/session/minecraft/profile/([0-9a-f]{32})(\?.*)?': Session, '/texture/(.*)': Texture, '/mc/game/(.*)': Meta, '/(.*\.jar)': Library})
+routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/join': Join, '/session/minecraft/hasJoined(\?.*)?': HasJoined, '/session/minecraft/profile/([0-9a-f]{32})(\?.*)?': Session, '/texture/(.*)': Texture, '/mc/(.*)': Meta, '/(.*\.jar)': Library})
 error_routes.update({'[0-9]{3}': JSONErrorHandler})
 
 
