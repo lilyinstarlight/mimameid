@@ -79,9 +79,9 @@ class Login(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
 
 class Logout(fooster.web.HTTPHandler):
     def do_get(self):
-        cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
-
         try:
+            cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
+
             delete = []
             for session, user in sessions.items():
                 if user[1] <= time.time():
@@ -144,9 +144,9 @@ class Edit(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
         return page.format(username=self.username, message=self.message)
 
     def do_get(self):
-        cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
-
         try:
+            cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
+
             delete = []
             for session, user in sessions.items():
                 if user[1] <= time.time():
@@ -162,9 +162,9 @@ class Edit(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
         return super().do_get()
 
     def do_post(self):
-        cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
-
         try:
+            cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
+
             self.username = sessions[cookies['session']][0]
         except (KeyError, IndexError):
             self.response.headers['Location'] = '/'
