@@ -42,5 +42,5 @@ setup(
     install_requires=['fooster-web', 'fooster-db', 'requests', 'rsa'],
     packages=find_packages(),
     package_data={'': ['html/*.*', 'res/*.*']},
-    entry_points = {'console_scripts': ['mimameid = mimameid.main']},
+    entry_points = {'console_scripts': ['mimameid = mimameid.__main__:main']},
 )

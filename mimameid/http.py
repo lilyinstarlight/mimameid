@@ -376,7 +376,7 @@ class Join(fooster.web.json.JSONHandler):
 
 class HasJoined(fooster.web.json.JSONHandler):
     def do_get(self):
-        args = dict(urllib.parse.parse_qsl(self.groups[0][1:], True))
+        args = dict(urllib.parse.parse_qsl(self.groups['params'][1:], True))
 
         try:
             for other in db:
@@ -385,7 +385,7 @@ class HasJoined(fooster.web.json.JSONHandler):
                     break
             else:
                 if config.forward:
-                    response = requests.get('https://sessionserver.mojang.com/session/minecraft/hasJoined' + self.groups[0])
+                    response = requests.get('https://sessionserver.mojang.com/session/minecraft/hasJoined' + self.groups['params'])
 
                     return response.status_code, response.json()
                 else:
@@ -414,15 +414,15 @@ class HasJoined(fooster.web.json.JSONHandler):
 
 class Session(fooster.web.json.JSONHandler):
     def do_get(self):
-        args = dict(urllib.parse.parse_qsl(self.groups[1][1:], True))
+        args = dict(urllib.parse.parse_qsl(self.groups['params'][1:], True))
 
         for other in db:
-            if other.uuid == self.groups[0]:
+            if other.uuid == self.groups['uuid']:
                 user = other
                 break
         else:
             if config.forward:
-                response = requests.get('https://sessionserver.mojang.com/session/minecraft/profile/' + self.groups[0] + self.groups[1])
+                response = requests.get('https://sessionserver.mojang.com/session/minecraft/profile/' + self.groups['uuid'] + self.groups['params'])
 
                 return response.status_code, response.json()
             else:
@@ -451,20 +451,20 @@ class Session(fooster.web.json.JSONHandler):
 
 class Texture(fooster.web.file.FileHandler):
     def respond(self):
-        norm_request = fooster.web.file.normpath(self.groups[0])
+        norm_request = fooster.web.file.normpath(self.groups['file'])
         if self.groups[0] != norm_request:
             self.response.headers.set('Location', '/texture/' + norm_request)
 
             return 307, ''
 
-        self.filename = config.dir + '/texture/' + urllib.parse.unquote(self.groups[0])
+        self.filename = config.dir + '/texture/' + urllib.parse.unquote(self.groups['file'])
 
         try:
             return super().respond()
         except fooster.web.HTTPError as error:
             if error.code == 404:
                 conn = http.client.HTTPSConnection('textures.minecraft.net')
-                conn.request('GET', '/texture/' + self.groups[0])
+                conn.request('GET', '/texture/' + self.groups['file'])
                 response = conn.getresponse()
 
                 return response.status, response
@@ -474,14 +474,14 @@ class Texture(fooster.web.file.FileHandler):
 
 class Meta(fooster.web.json.JSONHandler):
     def do_get(self):
-        request = requests.get('https://launchermeta.mojang.com/mc/' + self.groups[0])
+        request = requests.get('https://launchermeta.mojang.com/mc/' + self.groups['meta'])
         return request.status_code, request.json()
 
 
 class Library(fooster.web.HTTPHandler):
     def do_get(self):
         conn = http.client.HTTPSConnection('libraries.minecraft.net')
-        conn.request('GET', '/' + self.groups[0])
+        conn.request('GET', '/' + self.groups['file'])
         response = conn.getresponse()
 
         return response.status, response
@@ -507,7 +507,7 @@ routes = {}
 error_routes = {}
 
 
-routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/join': Join, '/session/minecraft/hasJoined(\?.*)?': HasJoined, '/session/minecraft/profile/([0-9a-f]{32})(\?.*)?': Session, '/texture/(.*)': Texture, '/mc/(.*)': Meta, '/(.*\.jar)': Library})
+routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/join': Join, '/session/minecraft/hasJoined(?P<params>\?.*)?': HasJoined, '/session/minecraft/profile/(?P<uuid>[0-9a-f]{32})(?P<params>\?.*)?': Session, '/texture/(?P<file>.*)': Texture, '/mc/(?P<meta>.*)': Meta, '/(?P<file>.*\.jar)': Library})
 error_routes.update({'[0-9]{3}': JSONErrorHandler})
 
 
