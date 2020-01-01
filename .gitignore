@@ -1,5 +1,8 @@
 build
 dist
-*.egg-info
 __pycache__
-.coverage
+.cache
+.eggs
+*.egg-info
+.coverage*
+.pytest_cache

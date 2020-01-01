@@ -13,7 +13,7 @@ import uuid
 import requests
 import rsa
 
-import fooster.web, fooster.web.file, fooster.web.form, fooster.web.json, fooster.web.page
+import fooster.web, fooster.web.file, fooster.web.form, fooster.web.json, fooster.web.page, fooster.web.query
 
 import fooster.db
 
@@ -67,7 +67,7 @@ class Login(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
 
             sessions[session] = (username, time.time() + timeout)
 
-            self.response.headers['Set-Cookie'] = 'session={}; Max-Age=3600'.format(session)
+            self.response.headers['Set-Cookie'] = 'session={}; Max-Age={}'.format(session, timeout)
             self.response.headers['Location'] = '/edit'
 
             return 303, ''
@@ -374,24 +374,22 @@ class Join(fooster.web.json.JSONHandler):
             raise fooster.web.HTTPError(400)
 
 
-class HasJoined(fooster.web.json.JSONHandler):
+class HasJoined(fooster.web.query.QueryMixIn, fooster.web.json.JSONHandler):
     def do_get(self):
-        args = dict(urllib.parse.parse_qsl(self.groups['params'][1:], True))
-
         try:
             for other in db:
-                if other.username == args['username']:
+                if other.username == self.request.query['username']:
                     user = other
                     break
             else:
                 if config.forward:
-                    response = requests.get('https://sessionserver.mojang.com/session/minecraft/hasJoined' + self.groups['params'])
+                    response = requests.get('https://sessionserver.mojang.com/session/minecraft/hasJoined' + self.groups['query'])
 
                     return response.status_code, response.json()
                 else:
                     raise fooster.web.HTTPError(404)
 
-            if user.server != args['serverId']:
+            if user.server != self.request.query['serverId']:
                 return 204, None
 
             textures = {'timestamp': int(round(time.time()*1000)), 'profileId': user.uuid, 'profileName': user.username, 'textures': {}}
@@ -412,17 +410,15 @@ class HasJoined(fooster.web.json.JSONHandler):
             raise fooster.web.HTTPError(400)
 
 
-class Session(fooster.web.json.JSONHandler):
+class Session(fooster.web.query.QueryMixIn, fooster.web.json.JSONHandler):
     def do_get(self):
-        args = dict(urllib.parse.parse_qsl(self.groups['params'][1:], True))
-
         for other in db:
             if other.uuid == self.groups['uuid']:
                 user = other
                 break
         else:
             if config.forward:
-                response = requests.get('https://sessionserver.mojang.com/session/minecraft/profile/' + self.groups['uuid'] + self.groups['params'])
+                response = requests.get('https://sessionserver.mojang.com/session/minecraft/profile/' + self.groups['uuid'] + self.groups['query'])
 
                 return response.status_code, response.json()
             else:
@@ -436,7 +432,7 @@ class Session(fooster.web.json.JSONHandler):
         if user.cape:
             textures['textures']['CAPE'] = {'url': '{}/texture/{}'.format(config.service, user.cape)}
 
-        if 'unsigned' in args and not args['unsigned']:
+        if 'unsigned' in self.request.query and not self.request.query['unsigned']:
             textures['signatureRequired'] = True
 
             textures_data = base64.b64encode(json.dumps(textures).encode('utf-8'))
@@ -449,22 +445,17 @@ class Session(fooster.web.json.JSONHandler):
             return 200, {'id': user.uuid, 'name': user.username, 'properties': [{'name': 'textures', 'value': textures_data.decode()}]}
 
 
-class Texture(fooster.web.file.FileHandler):
-    def respond(self):
-        norm_request = fooster.web.file.normpath(self.groups['file'])
-        if self.groups[0] != norm_request:
-            self.response.headers.set('Location', '/texture/' + norm_request)
+class Texture(fooster.web.file.PathHandler):
+    local = config.dir + '/texture'
+    remote = '/texture'
 
-            return 307, ''
-
-        self.filename = config.dir + '/texture/' + urllib.parse.unquote(self.groups['file'])
-
+    def do_get(self):
         try:
-            return super().respond()
+            return super().do_get()
         except fooster.web.HTTPError as error:
-            if error.code == 404:
+            if error.code == 404 and config.forward:
                 conn = http.client.HTTPSConnection('textures.minecraft.net')
-                conn.request('GET', '/texture/' + self.groups['file'])
+                conn.request('GET', '/texture' + self.groups['path'])
                 response = conn.getresponse()
 
                 return response.status, response
@@ -481,7 +472,7 @@ class Meta(fooster.web.json.JSONHandler):
 class Library(fooster.web.HTTPHandler):
     def do_get(self):
         conn = http.client.HTTPSConnection('libraries.minecraft.net')
-        conn.request('GET', '/' + self.groups['file'])
+        conn.request('GET', self.groups['path'])
         response = conn.getresponse()
 
         return response.status, response
@@ -507,7 +498,7 @@ routes = {}
 error_routes = {}
 
 
-routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/join': Join, '/session/minecraft/hasJoined(?P<params>\?.*)?': HasJoined, '/session/minecraft/profile/(?P<uuid>[0-9a-f]{32})(?P<params>\?.*)?': Session, '/texture/(?P<file>.*)': Texture, '/mc/(?P<meta>.*)': Meta, '/(?P<file>.*\.jar)': Library})
+routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/join': Join, **fooster.web.query.new('/session/minecraft/hasJoined', HasJoined), **fooster.web.query.new('/session/minecraft/profile/(?P<uuid>[0-9a-f]{32})', Session), '/texture(?P<path>/.*)': Texture, '/mc/(?P<meta>.*)': Meta, '(?P<path>/.*\.jar)': Library})
 error_routes.update({'[0-9]{3}': JSONErrorHandler})
 
 

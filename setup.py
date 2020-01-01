@@ -10,7 +10,7 @@ version = None
 
 
 def find(haystack, *needles):
-    regexes = [(index, re.compile("^{}\s*=\s*'([^']*)'$".format(needle))) for index, needle in enumerate(needles)]
+    regexes = [(index, re.compile(r'^{}\s*=\s*[\'"]([^\'"]*)[\'"]$'.format(needle))) for index, needle in enumerate(needles)]
     values = ['' for needle in needles]
 
     for line in haystack:
