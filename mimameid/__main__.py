@@ -1,9 +1,6 @@
 import argparse
 import logging
 import signal
-import sys
-
-import fooster.web
 
 from mimameid import config
 
@@ -46,32 +43,22 @@ def main():
     if args.service:
         config.service = args.service
 
-
-    # setup logging
-    log = logging.getLogger('mimameid')
-    if config.log:
-        log.addHandler(logging.FileHandler(config.log))
-    else:
-        log.addHandler(logging.StreamHandler(sys.stdout))
-
-    if config.http_log:
-        http_log_handler = logging.FileHandler(config.http_log)
-        http_log_handler.setFormatter(fooster.web.HTTPLogFormatter())
-
-        logging.getLogger('http').addHandler(http_log_handler)
+    config._apply()
 
 
-    from mimameid import name, version
+    from mimameid import __version__
     from mimameid import http
 
-    log.info(name + ' ' + version + ' starting...')
+    log = logging.getLogger('mimameid')
+
+    log.info('mimameid ' + __version__ + ' starting...')
 
     # start everything
     http.start()
 
 
     # cleanup function
-    def exit():
+    def exit(signum, frame):
         http.stop()
 
 

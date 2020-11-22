@@ -5,7 +5,6 @@ import re
 from setuptools import setup, find_packages
 
 
-name = None
 version = None
 
 
@@ -24,23 +23,26 @@ def find(haystack, *needles):
                 del regexes[rindex]
                 break
 
-    return values
+    if len(needles) == 1:
+        return values[0]
+    else:
+        return values
 
 
 with open(os.path.join(os.path.dirname(__file__), 'mimameid', '__init__.py'), 'r') as mimameid:
-    name, version = find(mimameid, 'name', 'version')
+    version = find(mimameid, '__version__')
 
 
 setup(
-    name=name,
+    name='mimameid',
     version=version,
     description='an implementation of Mojang\'s Yggdrasil authentication',
     license='MIT',
-    url='https://github.com/fkmclane/mimameid',
-    author='Foster McLane',
-    author_email='fkmclane@gmail.com',
-    install_requires=['fooster-web', 'fooster-db', 'requests', 'rsa'],
+    url='https://github.com/lilyinstarlight/mimameid',
+    author='Lily Foster',
+    author_email='lily@lily.flowers',
+    install_requires=['fooster-web', 'fooster-db', 'httpx', 'rsa'],
     packages=find_packages(),
     package_data={'': ['html/*.*', 'res/*.*']},
-    entry_points = {'console_scripts': ['mimameid = mimameid.__main__:main']},
+    entry_points={'console_scripts': ['mimameid = mimameid.__main__:main']},
 )

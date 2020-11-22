@@ -10,7 +10,8 @@ import time
 import urllib.parse
 import uuid
 
-import requests
+import httpx
+
 import rsa
 
 import fooster.web, fooster.web.file, fooster.web.form, fooster.web.json, fooster.web.page, fooster.web.query
@@ -23,8 +24,8 @@ from mimameid import config
 log = logging.getLogger('mimameid')
 
 db = fooster.db.Database(config.dir + '/profiles.db', ['username', 'uuid', 'password', 'skin', 'cape', 'access', 'client', 'server'])
+sessions = fooster.db.Database(config.dir + '/sessions.db', ['token', 'username', 'expire'])
 timeout = 3600
-sessions = None
 
 key = (None, None)
 
@@ -55,19 +56,19 @@ class Login(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
             self.response.headers['Location'] = '/'
             return 303, ''
 
-        session = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(32))
+        token = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(32))
 
         if username in db and hashlib.sha256(password.encode('utf-8')).hexdigest() == db[username].password:
             delete = []
-            for session, user in sessions.items():
-                if user[1] <= time.time():
-                    delete.append(session)
-            for session in delete:
-                del sessions[session]
+            for session in sessions:
+                if session.expire <= time.time():
+                    delete.append(session.token)
+            for token in delete:
+                del sessions[token]
 
-            sessions[session] = (username, time.time() + timeout)
+            sessions[token] = sessions.Entry(username=username, expire=time.time() + timeout)
 
-            self.response.headers['Set-Cookie'] = 'session={}; Max-Age={}'.format(session, timeout)
+            self.response.headers['Set-Cookie'] = 'session={}; Max-Age={}'.format(token, timeout)
             self.response.headers['Location'] = '/edit'
 
             return 303, ''
@@ -83,11 +84,11 @@ class Logout(fooster.web.HTTPHandler):
             cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
 
             delete = []
-            for session, user in sessions.items():
-                if user[1] <= time.time():
-                    delete.append(session)
-            for session in delete:
-                del sessions[session]
+            for session in sessions:
+                if session.expire <= time.time():
+                    delete.append(session.token)
+            for token in delete:
+                del sessions[token]
 
             del sessions[cookies['session']]
         except (KeyError, IndexError):
@@ -148,13 +149,13 @@ class Edit(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
             cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
 
             delete = []
-            for session, user in sessions.items():
-                if user[1] <= time.time():
-                    delete.append(session)
-            for session in delete:
-                del sessions[session]
+            for session in sessions:
+                if session.expire <= time.time():
+                    delete.append(session.token)
+            for token in delete:
+                del sessions[token]
 
-            self.username = sessions[cookies['session']][0]
+            self.username = sessions[cookies['session']].username
         except (KeyError, IndexError):
             self.response.headers['Location'] = '/'
             return 303, ''
@@ -165,7 +166,7 @@ class Edit(fooster.web.page.PageHandler, fooster.web.form.FormHandler):
         try:
             cookies = {cookie.split('=', 1)[0].strip(): cookie.split('=', 1)[1].strip() for cookie in self.request.headers['Cookie'].split(';')}
 
-            self.username = sessions[cookies['session']][0]
+            self.username = sessions[cookies['session']].username
         except (KeyError, IndexError):
             self.response.headers['Location'] = '/'
             return 303, ''
@@ -209,7 +210,7 @@ class Authenticate(fooster.web.json.JSONHandler):
                 user = db[username]
             except KeyError:
                 if config.forward:
-                    request = requests.post('https://authserver.mojang.com/authenticate', json=self.request.body)
+                    request = httpx.post('https://authserver.mojang.com/authenticate', json=self.request.body)
                     return request.status_code, request.json()
                 else:
                     raise fooster.web.HTTPError(403)
@@ -243,7 +244,7 @@ class Refresh(fooster.web.json.JSONHandler):
 
             if not user or not user.access or user.access != self.request.body['accessToken']:
                 if config.forward:
-                    request = requests.post('https://authserver.mojang.com/refresh', json=self.request.body)
+                    request = httpx.post('https://authserver.mojang.com/refresh', json=self.request.body)
                     return request.status_code, request.json()
                 else:
                     raise fooster.web.HTTPError(403)
@@ -273,7 +274,7 @@ class Validate(fooster.web.json.JSONHandler):
 
             if not user or not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
                 if config.forward:
-                    request = requests.post('https://authserver.mojang.com/validate', json=self.request.body)
+                    request = httpx.post('https://authserver.mojang.com/validate', json=self.request.body)
                     return request.status_code, None if request.status_code == 204 else request.json()
                 else:
                     raise fooster.web.HTTPError(403)
@@ -292,7 +293,7 @@ class Signout(fooster.web.json.JSONHandler):
                 user = db[username]
             except KeyError:
                 if config.forward:
-                    request = requests.post('https://authserver.mojang.com/signout', json=self.request.body)
+                    request = httpx.post('https://authserver.mojang.com/signout', json=self.request.body)
                     return request.status_code, None if request.status_code == 204 else request.json()
                 else:
                     raise fooster.web.HTTPError(403)
@@ -319,7 +320,7 @@ class Invalidate(fooster.web.json.JSONHandler):
 
             if not user or not user.access or user.access != self.request.body['accessToken'] or user.client != self.request.body['clientToken']:
                 if config.forward:
-                    request = requests.post('https://authserver.mojang.com/invalidate', json=self.request.body)
+                    request = httpx.post('https://authserver.mojang.com/invalidate', json=self.request.body)
                     return request.status_code, None if request.status_code == 204 else request.json()
                 else:
                     raise fooster.web.HTTPError(403)
@@ -345,7 +346,7 @@ class Profile(fooster.web.json.JSONHandler):
                 forward.append(username)
 
         if config.forward:
-            usernames.extend(requests.post('https://api.mojang.com/profiles/minecraft', json=forward).json())
+            usernames.extend(httpx.post('https://api.mojang.com/profiles/minecraft', json=forward).json())
 
         return 200, usernames
 
@@ -362,7 +363,7 @@ class Join(fooster.web.json.JSONHandler):
 
             if not user or not user.access or user.access != self.request.body['accessToken']:
                 if config.forward:
-                    request = requests.post('https://sessionserver.mojang.com/session/minecraft/join', json=self.request.body)
+                    request = httpx.post('https://sessionserver.mojang.com/session/minecraft/join', json=self.request.body)
                     return request.status_code, None if request.status_code == 204 else request.json()
                 else:
                     raise fooster.web.HTTPError(403)
@@ -383,7 +384,7 @@ class HasJoined(fooster.web.query.QueryMixIn, fooster.web.json.JSONHandler):
                     break
             else:
                 if config.forward:
-                    response = requests.get('https://sessionserver.mojang.com/session/minecraft/hasJoined' + self.groups['query'])
+                    response = httpx.get('https://sessionserver.mojang.com/session/minecraft/hasJoined' + self.groups['query'])
 
                     return response.status_code, response.json()
                 else:
@@ -418,7 +419,7 @@ class Session(fooster.web.query.QueryMixIn, fooster.web.json.JSONHandler):
                 break
         else:
             if config.forward:
-                response = requests.get('https://sessionserver.mojang.com/session/minecraft/profile/' + self.groups['uuid'] + self.groups['query'])
+                response = httpx.get('https://sessionserver.mojang.com/session/minecraft/profile/' + self.groups['uuid'] + self.groups['query'])
 
                 return response.status_code, response.json()
             else:
@@ -465,7 +466,7 @@ class Texture(fooster.web.file.PathHandler):
 
 class Meta(fooster.web.json.JSONHandler):
     def do_get(self):
-        request = requests.get('https://launchermeta.mojang.com/mc/' + self.groups['meta'])
+        request = httpx.get('https://launchermeta.mojang.com/mc/' + self.groups['meta'])
         return request.status_code, request.json()
 
 
@@ -503,7 +504,7 @@ error_routes.update({'[0-9]{3}': JSONErrorHandler})
 
 
 def start():
-    global key, web, sessions
+    global key, web
 
     if os.path.exists(config.dir + '/pub.key'):
         log.info('Loading RSA key...')
@@ -527,15 +528,13 @@ def start():
             key_file.write(key[1].save_pkcs1())
 
     web = fooster.web.HTTPServer(config.addr, routes, error_routes)
-    sessions = web.sync.dict()
     web.start()
 
 
 def stop():
-    global web, sessions
+    global web
 
     web.stop()
-    sessions = None
     web = None
 
 
