@@ -61,6 +61,8 @@ def _apply():
     else:
         _logging.getLogger('mimameid').addHandler(_logging.StreamHandler(_sys.stdout))
 
+    _logging.getLogger('mimameid').setLevel(_logging.INFO)
+
     if http_log:
         http_log_handler = _logging.FileHandler(http_log)
         http_log_handler.setFormatter(_web.HTTPLogFormatter())
