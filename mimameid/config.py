@@ -4,6 +4,8 @@ import os as _os
 import os.path as _path
 import sys as _sys
 
+import rsa as _rsa
+
 import fooster.web as _web
 
 
@@ -27,6 +29,11 @@ service = 'http://textures.minecraft.net'
 forward = False
 
 
+# runtime values based on config
+_key_pub = None
+_key_priv = None
+
+
 # store config in env var
 def _store():
     config = {key: val for key, val in globals().items() if not key.startswith('_')}
@@ -46,6 +53,8 @@ def _load():
 
 # apply special config-specific logic after changes
 def _apply():
+    global _key_pub, _key_priv
+
     # setup logging
     if log:
         _logging.getLogger('mimameid').addHandler(_logging.FileHandler(log))
@@ -57,6 +66,26 @@ def _apply():
         http_log_handler.setFormatter(_web.HTTPLogFormatter())
 
         _logging.getLogger('http').addHandler(http_log_handler)
+
+    # setup rsa key
+    if _path.exists(dir + '/pub.key'):
+        _logging.getLogger('mimameid').info('Loading RSA key...')
+
+        with open(dir + '/pub.key', 'rb') as key_file:
+            _key_pub = _rsa.PublicKey.load_pkcs1(key_file.read())
+        with open(dir + '/priv.key', 'rb') as key_file:
+            _key_priv = _rsa.PrivateKey.load_pkcs1(key_file.read())
+    else:
+        _logging.getLogger('mimameid').info('Generating RSA key...')
+
+        _key_pub, _key_priv = _rsa.newkeys(2048)
+
+        _os.makedirs(dir, exist_ok=True)
+
+        with open(dir + '/pub.key', 'wb') as key_file:
+            key_file.write(_key_pub.save_pkcs1())
+        with open(dir + '/priv.key', 'wb') as key_file:
+            key_file.write(_key_priv.save_pkcs1())
 
     # automatically store if not already serialized
     if 'MIMAMEID_CONFIG' not in _os.environ:
