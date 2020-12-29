@@ -65,7 +65,7 @@ class Index(SessionMixIn, fooster.web.page.PageHandler):
             return page.format(buttons=buttons.read())
 
 
-class Login(SessionMixIn, fooster.web.page.PageHandler, fooster.web.form.FormHandler):
+class Login(SessionMixIn, fooster.web.form.FormMixIn, fooster.web.page.PageHandler):
     directory = config.template
     page = 'login.html'
     message = ''
@@ -123,7 +123,7 @@ class Logout(SessionMixIn, fooster.web.HTTPHandler):
         return 303, ''
 
 
-class Register(SessionMixIn, fooster.web.page.PageHandler, fooster.web.form.FormHandler):
+class Register(SessionMixIn, fooster.web.form.FormMixIn, fooster.web.page.PageHandler):
     directory = config.template
     page = 'register.html'
     message = ''
@@ -167,7 +167,7 @@ class Register(SessionMixIn, fooster.web.page.PageHandler, fooster.web.form.Form
         return self.do_get()
 
 
-class Edit(SessionMixIn, fooster.web.page.PageHandler, fooster.web.form.FormHandler):
+class Edit(SessionMixIn, fooster.web.form.FormMixIn, fooster.web.page.PageHandler):
     directory = config.template
     page = 'edit.html'
     message = ''
