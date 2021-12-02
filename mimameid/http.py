@@ -198,7 +198,7 @@ class Edit(SessionMixIn, fooster.web.form.FormMixIn, fooster.web.page.PageHandle
 
         user = db[self.session.username]
 
-        if 'username' in self.request.body and self.request.body['username']:
+        if 'username' in self.request.body and self.request.body['username'] and self.request.body['username'] != self.session.username:
             try:
                 db.add(self.request.body['username'], user.uuid, user.salt, user.password, user.skin, user.cape, '', '', '')
                 del db[self.session.username]
