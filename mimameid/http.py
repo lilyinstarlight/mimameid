@@ -7,14 +7,18 @@ import os
 import secrets
 import string
 import time
-import urllib.parse
 import uuid
 
 import httpx
 
 import rsa
 
-import fooster.web, fooster.web.file, fooster.web.form, fooster.web.json, fooster.web.page, fooster.web.query
+import fooster.web
+import fooster.web.file
+import fooster.web.form
+import fooster.web.json
+import fooster.web.page
+import fooster.web.query
 
 import fooster.db
 
@@ -89,13 +93,13 @@ class Login(SessionMixIn, fooster.web.form.FormMixIn, fooster.web.page.PageHandl
             self.response.headers['Location'] = '/'
             return 303, ''
 
-        token = ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(32))
-
         if username in db:
             user = db[username]
 
             if hashlib.sha256((user.salt + password).encode('utf-8')).hexdigest() == user.password:
-                sessions[token] = sessions.Entry(username=username, expire=time.time() + timeout)
+                token = ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(32))
+
+                sessions.add(token, username, time.time() + timeout)
 
                 self.response.headers['Set-Cookie'] = 'session={}; Max-Age={}'.format(token, timeout)
                 self.response.headers['Location'] = '/edit'
@@ -150,14 +154,14 @@ class Register(SessionMixIn, fooster.web.form.FormMixIn, fooster.web.page.PageHa
 
         if len(username) >= 3 and len(username) <= 16:
             if password == confirm:
-                if username not in db:
+                try:
                     salt = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-                    db[username] = db.Entry(str(uuid.uuid4()).replace('-', ''), salt, hashlib.sha256((salt + self.request.body['password']).encode('utf-8')).hexdigest(), '', '', '', '', '')
+                    db.add(username, str(uuid.uuid4()).replace('-', ''), salt, hashlib.sha256((salt + self.request.body['password']).encode('utf-8')).hexdigest(), '', '', '', '', '')
 
                     self.response.headers['Location'] = '/login'
 
                     return 303, ''
-                else:
+                except fooster.db.KeyExistsError:
                     self.message = 'Username already taken.'
             else:
                 self.message = 'Passwords do not match.'
@@ -193,6 +197,15 @@ class Edit(SessionMixIn, fooster.web.form.FormMixIn, fooster.web.page.PageHandle
             return 303, ''
 
         user = db[self.session.username]
+
+        if 'username' in self.request.body and self.request.body['username']:
+            try:
+                db.add(self.request.body['username'], user.uuid, user.salt, user.password, user.skin, user.cape, '', '', '')
+                del db[self.session.username]
+                self.session.username = self.request.body['username']
+                user = db[self.session.username]
+            except fooster.db.KeyExistsError:
+                self.message += ('\n' if self.message else '') + 'Username already taken.'
 
         if 'password' in self.request.body and self.request.body['password']:
             if 'confirm' in self.request.body and self.request.body['confirm'] == self.request.body['password']:
@@ -251,7 +264,6 @@ class Authenticate(fooster.web.json.JSONHandler):
             return 200, data
         except (KeyError, TypeError):
             raise fooster.web.HTTPError(400)
-
 
 
 class Refresh(fooster.web.json.JSONHandler):
@@ -415,7 +427,7 @@ class HasJoined(fooster.web.query.QueryMixIn, fooster.web.json.JSONHandler):
             if user.server != self.request.query['serverId']:
                 return 204, None
 
-            textures = {'timestamp': int(round(time.time()*1000)), 'profileId': user.uuid, 'profileName': user.username, 'textures': {}}
+            textures = {'timestamp': int(round(time.time() * 1000)), 'profileId': user.uuid, 'profileName': user.username, 'textures': {}}
 
             if user.skin:
                 textures['textures']['SKIN'] = {'url': '{}/texture/{}'.format(config.service, user.skin)}
@@ -447,7 +459,7 @@ class Session(fooster.web.query.QueryMixIn, fooster.web.json.JSONHandler):
             else:
                 raise fooster.web.HTTPError(404)
 
-        textures = {'timestamp': int(round(time.time()*1000)), 'profileId': user.uuid, 'profileName': user.username, 'textures': {}}
+        textures = {'timestamp': int(round(time.time() * 1000)), 'profileId': user.uuid, 'profileName': user.username, 'textures': {}}
 
         if user.skin:
             textures['textures']['SKIN'] = {'url': '{}/texture/{}'.format(config.service, user.skin)}
@@ -521,7 +533,7 @@ routes = {}
 error_routes = {}
 
 
-routes.update({'/key': Key, '/': Index, '/login': Login, '/logout': Logout, '/register': Register, '/edit': Edit, '/authenticate': Authenticate, '/refresh': Refresh, '/validate': Validate, '/signout': Signout, '/invalidate': Invalidate, '/profiles/minecraft': Profile, '/session/minecraft/join': Join, **fooster.web.query.new('/session/minecraft/hasJoined', HasJoined), **fooster.web.query.new('/session/minecraft/profile/(?P<uuid>[0-9a-f]{32})', Session), '/texture(?P<path>/.*)': Texture, '(?P<path>/.*\.json)': Meta, '(?P<path>/.*\.jar)': Library})
+routes.update({r'/key': Key, r'/': Index, r'/login': Login, r'/logout': Logout, r'/register': Register, r'/edit': Edit, r'/authenticate': Authenticate, r'/refresh': Refresh, r'/validate': Validate, r'/signout': Signout, r'/invalidate': Invalidate, r'/profiles/minecraft': Profile, r'/session/minecraft/join': Join, **fooster.web.query.new(r'/session/minecraft/hasJoined', HasJoined), **fooster.web.query.new(r'/session/minecraft/profile/(?P<uuid>[0-9a-f]{32})', Session), r'/texture(?P<path>/.*)': Texture, r'(?P<path>/.*\.json)': Meta, r'(?P<path>/.*\.jar)': Library})
 error_routes.update({'[0-9]{3}': JSONErrorHandler})
 
 
